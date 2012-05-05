@@ -21,7 +21,7 @@ will be the last, in our intentions).
 Some (runtime configurable) deviations from the standards may be present.
 (we intend to add an encryption layer to the standard)
 
-Giovanni Faglioni <giova@faglioni.it> 
+Giovanni Faglioni <giova at faglioni dot it> 
 
 The code will be under an Open Source License (GPL, presumably)
 
