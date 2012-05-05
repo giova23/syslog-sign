@@ -8,7 +8,6 @@ to be called from (initially, at least) syslog-ng (open source version).
 
 The idea is to have something like this in the syslog-ng.conf file:
 
-<br/>
 destination d_program_syslog_sign {<br/>
         program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf" 
                 flags("syslog-protocol")
@@ -18,7 +17,7 @@ destination d_program_syslog_sign {<br/>
 in order to properly generate all rfc5848 records.
 
 Signature Blocks are already implemented, Certificate Blocks 
-and Signature groups are still missing.
+and Signature groups still missing.
 We have (optional) encryption for the output (out of the standard,
 and suboptimal)
 
