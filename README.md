@@ -10,8 +10,8 @@ The idea is to have something like this in the syslog-ng.conf file:
 
 <br/>
 destination d_program_syslog_sign {<br/>
-        program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf" <br/>
-                flags("syslog-protocol")<br/>
+        program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf" 
+                flags("syslog-protocol")
         );<br/>
 };<br/>
 
