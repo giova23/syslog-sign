@@ -14,14 +14,17 @@ destination d_program_syslog_sign {
         );
 };
 
-in order to properly generate all rfc5848 records (Signature Blocks will
-be the first implemented, then Certificate Blocks and Signature groups 
-will be the last, in our intentions).
+in order to properly generate all rfc5848 records.
 
-Some (runtime configurable) deviations from the standards may be present.
-(we intend to add an encryption layer to the standard)
+Signature Blocks are already implemented, Certificate Blocks 
+and Signature groups are still missing.
+We have (optional) encryption for the output (out of the standard,
+and suboptimal)
+
+Some (runtime configurable) deviations from the standards are present.
+We added an encryption layer to the standard.
 
 Giovanni Faglioni &lt; giova at faglioni dot it &gt; 
 
-The code will be under an Open Source License (GPL, presumably)
+The code is under the GPLv2 or later
 
