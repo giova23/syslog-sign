@@ -9,11 +9,11 @@ to be called from (initially, at least) syslog-ng (open source version).
 The idea is to have something like this in the syslog-ng.conf file:
 
 <code>
-destination d_program_syslog_sign {
-        program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf"
-                flags("syslog-protocol")
-        );
-};
+destination d_program_syslog_sign {<br/>
+        program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf" <br/>
+                flags("syslog-protocol")<br/>
+        );<br/>
+};<br/>
 </code>
 
 in order to properly generate all rfc5848 records.
