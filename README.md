@@ -18,7 +18,7 @@ in order to properly generate all rfc5848 records.
 
 Signature Blocks are already implemented, Certificate Blocks 
 and Signature groups still missing.
-We have (optional) encryption for the output (out of the standard,
+We have (optional) encryption for the output (this is outside the standard,
 and suboptimal)
 
 Some (runtime configurable) deviations from the standards are present.
