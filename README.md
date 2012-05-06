@@ -1,7 +1,7 @@
 syslog-sign
 ===========
 
-Open Source Syslog Sign (id est: rfc5848 implementation) addon for syslog-ng
+Open Source "Signed Syslog Messages" (id est: rfc5848 implementation) addon for syslog-ng
 
 This project aims to implement an rfc5848 compliant syslog-signer,
 to be called from (initially, at least) syslog-ng (open source version).
