@@ -26,5 +26,5 @@ previous optional output encryption layer.
 
 Giovanni Faglioni &lt; giova at faglioni dot it &gt; 
 
-The code is under the GPLv2 or later
+The code is under the GPLv2 or, at your option, any later version.
 
