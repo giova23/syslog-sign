@@ -107,7 +107,8 @@ while ( $#ARGV >= 0 ) {
                 shift;
         }
         if ( ( $ARGV[0] eq "-e") || ($ARGV[0] eq "--encrypt" ) ) {
-                $encrypt=1;
+		# for now, this is a toggling switch.
+                $encrypt=!$encrypt;
                 shift;
         }
 }
@@ -188,6 +189,8 @@ $recnum=0;
 $signum=0;
 $signature_errors=0;
 $hashblock_errors=0;
+$rsid_errors=0;
+$gbc_errors=0;
 
 $gbc_expected=0+1;
 
@@ -314,6 +317,25 @@ while (chomp ($line=<LOG>)) {
 	# when decrypting, we should output the cleartext line.
 	# so do it anyway
         print "$line\n";
+
+	# FIXME: put an "LAST RSID,GBC" reader here.
+	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.56 2012/05/06 13:28:47 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
+
+	if ($line =~ /.*syslog-sign.pl [0-9]+ - - Starting '(.*)' LAST RSID=\"([0-9]+)\" GBC=\"([0-9]+)\".*/ ) {
+		$version="$1";
+		$lastrsid="$2";
+		$lastgbc="$3";
+
+		# print STDERR "Gotcha: LAST RSID='$lastrsid' GBC='$lastgbc' - CURRENT RSID='$rsid' GBC='$gbc' version='$version';\n";
+		if ($lastrsid ne $rsid) {
+			print STDERR "ERROR: RSID mismatch: '$rsid' does not match '$lastrsid'\n";
+			$rsid_errors++;
+		} elsif ( $lastgbc ne $gbc ) {
+			print STDERR "ERROR: RSID='$lastrsid' GBC mismatch: '$gbc' does not match '$lastgbc'\n";
+			$gbc_errors++;
+		}
+
+	}
     }
 }
 
@@ -329,13 +351,15 @@ print STDERR "** Final Report:\n";
 if ($recsig > 0 ) {
 	print STDERR "** WARNING: $recsig Lines (out of $recnum) without valid signature found.\n";
 } else {
-	print STDERR "** All $recnum Lines have a valid signature.\n";
+	print STDERR "** $recnum Lines have a valid signature.\n";
 }
 print STDERR "** " . $lognum . " Syslog (rfc5424) Lines Found.\n";
 print STDERR "** $signum Valid Signatures (rfc5848) Found.\n";
 
 print STDERR "** ERROR: $signature_errors Invalid Signature Blocks.\n" if ($signature_errors > 0);
 print STDERR "** ERROR: $hashblock_errors Invalid Hash Blocks.\n" if ($hashblock_errors > 0 );
+print STDERR "** ERROR: $rsid_errors Invalid RSID Checks.\n" if ($rsid_errors > 0);
+print STDERR "** ERROR: $gbc_errors Invalid GBC Checks.\n" if ($gbc_errors > 0);
 print STDERR "**********************************************\n";
 
 exit 0;
