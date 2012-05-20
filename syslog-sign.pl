@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
 $|=1;
-$rcsid='$Id: syslog-sign.pl,v 0.55 2012/05/02 16:16:19 giova Exp $';
+$rcsid='$Id: syslog-sign.pl,v 0.57 2012/05/20 07:01:10 giova Exp giova $';
 
 use POSIX;
 use MIME::Base64;
@@ -319,7 +319,7 @@ while (chomp ($line=<LOG>)) {
         print "$line\n";
 
 	# FIXME: put an "LAST RSID,GBC" reader here.
-	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.56 2012/05/06 13:28:47 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
+	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.57 2012/05/20 07:01:10 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
 
 	if ($line =~ /.*syslog-sign.pl [0-9]+ - - Starting '(.*)' LAST RSID=\"([0-9]+)\" GBC=\"([0-9]+)\".*/ ) {
 		$version="$1";
