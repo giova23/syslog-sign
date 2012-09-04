@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
 $|=1;
-$rcsid='$Id: syslog-sign.pl,v 0.60 2012/05/20 10:38:39 giova Exp giova $';
+$rcsid='$Id: syslog-sign.pl,v 0.61 2012/05/20 12:50:49 giova Exp giova $';
 
 use POSIX;
 use MIME::Base64;
@@ -319,7 +319,7 @@ while (chomp ($line=<LOG>)) {
         print "$line\n";
 
 	# FIXME: put an "LAST RSID,GBC" reader here.
-	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.60 2012/05/20 10:38:39 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
+	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.61 2012/05/20 12:50:49 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
 
 	if ($line =~ /.*syslog-sign.pl [0-9]+ - - Starting '(.*)' LAST RSID=\"([0-9]+)\" GBC=\"([0-9]+)\".*/ ) {
 		$version="$1";
@@ -419,6 +419,9 @@ $last_rsid_gbc=<RSID>;
 chop $last_rsid_gbc;
 close(RSID);
 
+# FIXME: if there isn't a syslog daemon, it doesn't work.
+# (or if it's configured NOT to send auth messages to us)
+# should output a text line to the log directly, just after the open()
 openlog("syslog-sign.pl", "ndelay,pid", "auth");
 syslog(LOG_INFO, "Starting '$rcsid' LAST $last_rsid_gbc NEW RSID=\"$rsid\" GBC=\"$gbc\"" ); 
 closelog;
@@ -443,10 +446,14 @@ while ($continue) {
 	if ($recsig == 0 ) {
 		if ($encrypt) {
 			$datetimemark=POSIX::strftime("%Y%m%d-%H%M%S", localtime);
+			close(LOG);
 			#open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logfile}-encrypted-${rsid}-${gbc}.log") 
 			open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logdir}/${logname}-encrypted-${datetimemark}.log.gpg") 
 			|| die("Error: can't open gpg\n");
 		} else {
+			# FIXME: we open way too many logs.
+			# should be a single one, before the loop
+			close(LOG);
 			open(LOG, ">>$logfile") || die("Error: can't open '$logfile'\n");
 		}
 		LOG->autoflush(1); 
