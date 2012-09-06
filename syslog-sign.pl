@@ -59,6 +59,7 @@ $continue=0;
 $init_key=0;
 $init_rsid=0;
 $inc_rsid=0;
+$multifile=0;
 #$arg_logfile="";
 while ( $#ARGV >= 0 ) {
         if ( ( $ARGV[0] eq "-h") || ($ARGV[0] eq "--help" ) ) {
@@ -96,11 +97,11 @@ while ( $#ARGV >= 0 ) {
                 $logname=$ARGV[0];
                 shift;
         }
-        if ( ( $ARGV[0] eq "-lp") || ($ARGV[0] eq "--logpath" ) ) {
-                shift;
-                $logfile=$ARGV[0];
-                shift;
-        }
+        #if ( ( $ARGV[0] eq "-lp") || ($ARGV[0] eq "--logpath" ) ) {
+        #        shift;
+        #        $logfile=$ARGV[0];
+        #        shift;
+        #}
         if ( ( $ARGV[0] eq "-i") || ($ARGV[0] eq "--init" ) ) {
                 $init_key=1;
                 $init_rsid=1;
@@ -124,6 +125,10 @@ while ( $#ARGV >= 0 ) {
                 $encrypt_=!$encrypt_;
                 shift;
         }
+        if ( ( $ARGV[0] eq "-mf") || ($ARGV[0] eq "--multifile" ) ) {
+                $multifile=1;
+                shift;
+        }
 }
 
 
@@ -143,9 +148,9 @@ print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 $encrypt = $encrypt_?!$encrypt:$encrypt;
 print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 
-if (!defined($logfile)) {
+#if (!defined($logfile)) {
 	$logfile="${logdir}/${logname}.log";
-}
+#}
 #if ( ! -d $logdir ) {
 	File::Path::Tiny::mk($logdir) || die ("Error: can't create logdir '$logdir': $!\n");
 #}
@@ -196,14 +201,40 @@ if ($verify) {
 
 my $dsa_pub  = Crypt::OpenSSL::DSA->read_pub_key( $signpubkeyfile );
 
+
+&get_logfile;
 if ($encrypt) {
-	#`/usr/bin/gpgdir --no-recurse --no-delete -d ${logdir} 2>&1`;
-	system("/usr/bin/gpgdir --no-recurse --no-delete --skip-test --decrypt ${logdir}");
-	open(LOG, "cat ${logdir}/${logname}-encrypted-????????-??????-??????.log |")
-	|| die("Error: can't decrypt logs with gpgdir: $!\n");
+	if (!$multifile) {
+		open(SINGLELOG, "<${logfile}.gpg") || die ("Cannot open '${logfile}.gpg': $!");
+		$chunkdir="${logdir}/tmp_multigpg";
+		File::Path::Tiny::mk($chunkdir);
+		$multi_i=0;
+		open(OUTLOG, ">${chunkdir}/chunk_init_error.log");
+		while ($line=<SINGLELOG>) {
+			if ($line eq "-----BEGIN PGP MESSAGE-----\n") {
+				close(OUTLOG);
+				open(OUTLOG, ">${chunkdir}/chunk" . sprintf('-%06d', $multi_i) . ".log.gpg");
+				$multi_i++;
+			}
+			print OUTLOG $line;
+		}
+		close(OUTLOG);
+		system("/usr/bin/gpgdir --no-recurse --no-delete --skip-test --decrypt ${chunkdir}");	
+		#system("cat ${chunkdir}/chunk-??????.log > $logfile");
+		#system("find ${chunkdir} -name '" . "chunk-??????.log" . "' -print0 | xargs -0 cat > $logfile");
+		system("find ${chunkdir} -name '" . "chunk-??????.log" . "' | sort | xargs cat > $logfile");
+		#File::Path::Tiny::rm($chunkdir);
+	} else {
+		#`/usr/bin/gpgdir --no-recurse --no-delete -d ${logdir} 2>&1`;
+		system("/usr/bin/gpgdir --no-recurse --no-delete --skip-test --decrypt ${logdir}");
+		#open(LOG, "cat ${logdir}/${logname}-encrypted-????????-??????-??????.log |")
+		#|| die("Error: can't decrypt logs with gpgdir: $!\n");
+	}
 } else {
-	open(LOG, "<$logfile") || die("Error: can't open '$logfile': $!\n");
+	#open(LOG, "<$logfile") || die("Error: can't open '$logfile': $!\n");
 }
+open(LOG, "cat $logfile |") || die("Error: can't open '$logfile': $!\n");
+
 $hash_block="";
 $recsig=0;
 $recnum=0;
@@ -214,6 +245,7 @@ $rsid_errors=0;
 $gbc_errors=0;
 
 $gbc_expected=0+1;
+#$first_header_found=0;
 
 while (chomp ($line=<LOG>)) {
 
@@ -350,13 +382,19 @@ while (chomp ($line=<LOG>)) {
 		# print STDERR "Gotcha: LAST RSID='$lastrsid' GBC='$lastgbc' - CURRENT RSID='$rsid' GBC='$gbc' version='$version';\n";
 		# When we get the first header rsid is not set yet, so we skip the check (it would always generate an error on the first log line)
 		#if ($lastrsid ne $rsid) {
-		if ( ($lastrsid ne $rsid) && ($recnum>1) ) {
-			print STDERR "ERROR: RSID mismatch: '$rsid' does not match '$lastrsid'\n";
-			$rsid_errors++;
-		} elsif ( ( $lastgbc ne $gbc ) && ($recnum>1) ) {
-			print STDERR "ERROR: RSID='$lastrsid' GBC mismatch: '$gbc' does not match '$lastgbc'\n";
-			$gbc_errors++;
+		#if ( ($lastrsid ne $rsid) && ($recnum>1) ) {
+		#if ($first_header_found) {
+		if ($recnum>0) {
+			if ($lastrsid ne $rsid) {
+				print STDERR "ERROR: RSID mismatch: '$rsid' does not match '$lastrsid'\n";
+				$rsid_errors++;
+			} elsif ( $lastgbc ne $gbc ) {
+				print STDERR "ERROR: RSID='$lastrsid' GBC mismatch: '$gbc' does not match '$lastgbc'\n";
+				$gbc_errors++;
+			}
 		}
+		#$first_header_found=1;
+		print STDERR "First header found\n";
 
 	}
     }
@@ -471,23 +509,16 @@ while ($continue) {
 		alarm($T) 
 	};
 	if ($recsig == 0 ) {
+		close(LOG);
+		&get_logfile;
 		if ($encrypt) {
-			$datetimemark=POSIX::strftime("%Y%m%d-%H%M%S", localtime);
-			close(LOG);
 			#open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logfile}-encrypted-${rsid}-${gbc}.log") 
-			$enc_logname_base = "${logdir}/${logname}-encrypted-${datetimemark}";
-			$enc_ln_inc=0;
-			do {
-				$enc_logname = $enc_logname_base . sprintf('-%06d',$enc_ln_inc) . ".log.gpg";
-				$enc_ln_inc++;
-			} until ( ! -f $enc_logname );
 			#open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logdir}/${logname}-encrypted-${datetimemark}.log.gpg") 
-			open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${enc_logname}") 
+			open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> $logfile") 
 			|| die("Error: can't open gpg: $!\n");
 		} else {
 			# FIXME: we open way too many logs.
 			# should be a single one, before the loop
-			close(LOG);
 			open(LOG, ">>$logfile") || die("Error: can't open '$logfile': $!\n");
 		}
 		LOG->autoflush(1); 
@@ -669,6 +700,37 @@ sub signal_trap
 	exit 0;
 }
 
+sub get_logfile
+{
+	if ($multifile) {
+		if ($verify) {
+			$datetimemark="??????-??????";
+		} else {	
+			$datetimemark=POSIX::strftime("%Y%m%d-%H%M%S", localtime);
+		}
+		if ($encrypt) {
+			$logname_base = "${logdir}/${logname}-encrypted-${datetimemark}";
+		} else {
+			$logname_base = "${logdir}/${logname}-${datetimemark}";
+		}
+		if ($verify) {
+			$logfile = $logname_base . "-??????" . ".log";
+		} else {	
+			$ln_inc=0;
+			do {
+				$logfile = $logname_base . sprintf('-%06d',$ln_inc) . ".log";
+				$ln_inc++;
+			} until ( ! -f $logfile );
+		}
+	} else {
+		$logfile="${logdir}/${logname}.log";
+	}
+	if ( $encrypt && (!$verify) ) {
+		$logfile .= ".gpg"
+	}
+
+}
+
 sub printhelp
 {
                 print "$0 - RFC 5848 inspired Syslog signatures.\n\n";
@@ -681,8 +743,8 @@ sub printhelp
                 print "  -c  | --continue          : When verifying, continue after finding an error\n";
                 print "  -ld | --logdir dir        : Log directory (current setting: $logdir)\n";
                 print "  -l  | --logfile file      : Log filename  (current setting: $logname)\n";
-		$logfile_ = $logfile?$logfile:"${logdir}/${logname}";
-                print "  -lp | --logpath path      : Log path      (current setting: $logfile_)\n";
+		#$logfile_ = $logfile?$logfile:"${logdir}/${logname}";
+                #print "  -lp | --logpath path      : Log path      (current setting: $logfile_)\n";
 		print "  -e  | --encrypt           : Toggles between encripted and non-encrypted output (input in signature verification mode -v).\n";
                 print "Other options: \n";
 		print "  -gk | --generate-key           : Generate key at initialization phase. Must be done exactly once before using the system.\n";
