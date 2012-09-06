@@ -29,6 +29,7 @@ use Try::Tiny;
 use IO::Handle;
 use Time::HiRes qw/gettimeofday/;
 use Sys::Syslog;  
+use File::Path::Tiny;
 
 # Defaul config variables. 
 $N=10;   # Max Number of lines per Signature Block
@@ -42,6 +43,7 @@ $logname="syslog-signed";
 #$logfile="/var/log/signed/syslog-signed.log";
 $rsidcounter="/tmp/syslog-sign.rsid";
 $encrypt=0;
+$encrypt_=0;
 $secfrac=0;
 #$rsidcounter="/var/run/syslog-sign.rsid";
 # end of config
@@ -84,7 +86,17 @@ while ( $#ARGV >= 0 ) {
                 $verify=1;
                 shift;
         }
+        if ( ( $ARGV[0] eq "-ld") || ($ARGV[0] eq "--logdir" ) ) {
+                shift;
+                $logdir=$ARGV[0];
+                shift;
+        }
         if ( ( $ARGV[0] eq "-l") || ($ARGV[0] eq "--logfile" ) ) {
+                shift;
+                $logname=$ARGV[0];
+                shift;
+        }
+        if ( ( $ARGV[0] eq "-lp") || ($ARGV[0] eq "--logpath" ) ) {
                 shift;
                 $logfile=$ARGV[0];
                 shift;
@@ -108,7 +120,8 @@ while ( $#ARGV >= 0 ) {
         }
         if ( ( $ARGV[0] eq "-e") || ($ARGV[0] eq "--encrypt" ) ) {
 		# for now, this is a toggling switch.
-                $encrypt=!$encrypt;
+                #$encrypt=!$encrypt;
+                $encrypt_=!$encrypt_;
                 shift;
         }
 }
@@ -125,10 +138,18 @@ if ( open(FILE,"<$CONFIG_FILE") ) {
         }
         close(FILE);
 }
+print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
+#$encrypt = $encrypt xor $encrypt_;
+$encrypt = $encrypt_?!$encrypt:$encrypt;
+print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 
 if (!defined($logfile)) {
 	$logfile="${logdir}/${logname}.log";
 }
+#if ( ! -d $logdir ) {
+	File::Path::Tiny::mk($logdir) || die ("Error: can't create logdir '$logdir': $!\n");
+#}
+
 # Key Generation:
 # must be done exactly once, 
 # before using the system.
@@ -158,7 +179,7 @@ if ($init_rsid) {
 	if ( -f $rsidcounter ) {
 		print STDERR "Warning: existing RSID file is RESET and RE-INITIALIZED\n";
 	}
-	open(RSID, ">$rsidcounter") || die ("Error: can't open '$rsidcounter' for writing\n"); 
+	open(RSID, ">$rsidcounter") || die ("Error: can't open '$rsidcounter' for writing: $!\n"); 
 	print RSID "0";
 	close(RSID);
 	print "RSID counter reset to value 1 in $rsidcounter\n";
@@ -178,10 +199,10 @@ my $dsa_pub  = Crypt::OpenSSL::DSA->read_pub_key( $signpubkeyfile );
 if ($encrypt) {
 	#`/usr/bin/gpgdir --no-recurse --no-delete -d ${logdir} 2>&1`;
 	system("/usr/bin/gpgdir --no-recurse --no-delete --skip-test --decrypt ${logdir}");
-	open(LOG, "cat ${logdir}/${logname}-encrypted-????????-??????.log |")
-	|| die("Error: can't decrypt logs with gpgdir\n");
+	open(LOG, "cat ${logdir}/${logname}-encrypted-????????-??????-??????.log |")
+	|| die("Error: can't decrypt logs with gpgdir: $!\n");
 } else {
-	open(LOG, "<$logfile") || die("Error: can't open '$logfile'\n");
+	open(LOG, "<$logfile") || die("Error: can't open '$logfile': $!\n");
 }
 $hash_block="";
 $recsig=0;
@@ -327,10 +348,12 @@ while (chomp ($line=<LOG>)) {
 		$lastgbc="$3";
 
 		# print STDERR "Gotcha: LAST RSID='$lastrsid' GBC='$lastgbc' - CURRENT RSID='$rsid' GBC='$gbc' version='$version';\n";
-		if ($lastrsid ne $rsid) {
+		# When we get the first header rsid is not set yet, so we skip the check (it would always generate an error on the first log line)
+		#if ($lastrsid ne $rsid) {
+		if ( ($lastrsid ne $rsid) && ($recnum>1) ) {
 			print STDERR "ERROR: RSID mismatch: '$rsid' does not match '$lastrsid'\n";
 			$rsid_errors++;
-		} elsif ( $lastgbc ne $gbc ) {
+		} elsif ( ( $lastgbc ne $gbc ) && ($recnum>1) ) {
 			print STDERR "ERROR: RSID='$lastrsid' GBC mismatch: '$gbc' does not match '$lastgbc'\n";
 			$gbc_errors++;
 		}
@@ -341,7 +364,7 @@ while (chomp ($line=<LOG>)) {
 
 close(LOG);
 if ($encrypt) {
-	`rm -f ${logdir}/${logname}-encrypted-????????-??????.log`;
+	`rm -f ${logdir}/${logname}-encrypted-????????-??????-??????.log`;
 }
 
 $lognum = $recnum - $signum;
@@ -407,17 +430,21 @@ if ($inc_rsid) {
 	        	print RSID "$rsid";
 	        	close(RSID);
 		} else {
-			print STDERR "Warning: can't open '$rsidcounter' for writing.\n";
+			print STDERR "Warning: can't open '$rsidcounter' for writing: $!\n";
 			print STDERR "Incremental RSID disabled! Switching to Time-Based RSID!\n";
 			$rsid=time();
 		}
 	}
 }
 
-open(RSID,"</var/log/signed/rsid-gbc.db") || die("no rsid-gbc.db: $!");
-$last_rsid_gbc=<RSID>;
-chop $last_rsid_gbc;
-close(RSID);
+#open(RSID,"</var/log/signed/rsid-gbc.db") || die("no rsid-gbc.db: $!");
+$last_rsid_gbc="EMPTY/NEW";
+#if (open(RSID,"</var/log/signed/rsid-gbc.db") ) {
+if (open(RSID,"<${logdir}/rsid-gbc.db") ) {
+	$last_rsid_gbc=<RSID>;
+	chop $last_rsid_gbc;
+	close(RSID);
+}
 
 # FIXME: if there isn't a syslog daemon, it doesn't work.
 # (or if it's configured NOT to send auth messages to us)
@@ -448,13 +475,20 @@ while ($continue) {
 			$datetimemark=POSIX::strftime("%Y%m%d-%H%M%S", localtime);
 			close(LOG);
 			#open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logfile}-encrypted-${rsid}-${gbc}.log") 
-			open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logdir}/${logname}-encrypted-${datetimemark}.log.gpg") 
-			|| die("Error: can't open gpg\n");
+			$enc_logname_base = "${logdir}/${logname}-encrypted-${datetimemark}";
+			$enc_ln_inc=0;
+			do {
+				$enc_logname = $enc_logname_base . sprintf('-%06d',$enc_ln_inc) . ".log.gpg";
+				$enc_ln_inc++;
+			} until ( ! -f $enc_logname );
+			#open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logdir}/${logname}-encrypted-${datetimemark}.log.gpg") 
+			open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${enc_logname}") 
+			|| die("Error: can't open gpg: $!\n");
 		} else {
 			# FIXME: we open way too many logs.
 			# should be a single one, before the loop
 			close(LOG);
-			open(LOG, ">>$logfile") || die("Error: can't open '$logfile'\n");
+			open(LOG, ">>$logfile") || die("Error: can't open '$logfile': $!\n");
 		}
 		LOG->autoflush(1); 
 	}
@@ -543,7 +577,7 @@ sub generate_signature_block
 	# output the signature line
 	print LOG "$sig_start" . "$signature" . "$sig_end";
 
-	open(OUT,">/var/log/signed/rsid-gbc.db") || die("no rsid-gbc.db: $!");
+	open(OUT,">${logdir}/rsid-gbc.db") || die("Cannot write on '${logdir}/rsid-gbc.db: $!");
 	print OUT "RSID=\"$rsid\" GBC=\"$gbc\"\n";
 	close(OUT);
 
@@ -640,13 +674,22 @@ sub printhelp
                 print "$0 - RFC 5848 inspired Syslog signatures.\n\n";
                 print "Usage: $0 [OPTIONS]\n\n";
                 print "Options: \n";
-                print "  -h | --help              : This help\n";
-                print "  -d | --debug             : Turns on verbose debugging output\n";
-                print "  -f | --cfile config-file : Reads configuration from config-file (current setting: $CONFIG_FILE)\n";
-                print "  -v | --verify            : Log signature verification mode\n";
-                print "  -c | --continue          : When verifying, continue after finding an error\n";
-                print "  -l | --logfile logfile   : Writes to (reads from) logfile (current setting: $logfile)\n";
-		print "  -e | --encrypt           : Encripts output.\n";
+                print "  -h  | --help              : This help\n";
+                print "  -d  | --debug             : Turns on verbose debugging output\n";
+                print "  -f  | --cfile config-file : Reads configuration from config-file (current setting: $CONFIG_FILE)\n";
+                print "  -v  | --verify            : Log signature verification mode\n";
+                print "  -c  | --continue          : When verifying, continue after finding an error\n";
+                print "  -ld | --logdir dir        : Log directory (current setting: $logdir)\n";
+                print "  -l  | --logfile file      : Log filename  (current setting: $logname)\n";
+		$logfile_ = $logfile?$logfile:"${logdir}/${logname}";
+                print "  -lp | --logpath path      : Log path      (current setting: $logfile_)\n";
+		print "  -e  | --encrypt           : Toggles between encripted and non-encrypted output (input in signature verification mode -v).\n";
+                print "Other options: \n";
+		print "  -gk | --generate-key           : Generate key at initialization phase. Must be done exactly once before using the system.\n";
+		print "  -ir | --incremental-rsid       : Uses Incremental RSID instead of (less secure) Time-Based RSID.\n";
+		print "  -gr | --generate-rsid          : Initialize Incremental RSID. If Incremental RSID is used, it must be initialized once before using the system,\n";
+		print "                                   so as to prevent cases in which it wouldn't be possible to increment it.\n"; 
+		print "  -i  | --init                   : Generate key and initialize Incremental RSID (equivalent to -gk -gr).\n";
 		print "Whitout options signs standard input lines in an rfc5828-like mode.\n";
                 print "\n";
                 print "www.nabla2.it\n";
