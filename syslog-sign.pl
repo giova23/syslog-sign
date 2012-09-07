@@ -223,7 +223,7 @@ if ($encrypt) {
 		#system("cat ${chunkdir}/chunk-??????.log > $logfile");
 		#system("find ${chunkdir} -name '" . "chunk-??????.log" . "' -print0 | xargs -0 cat > $logfile");
 		system("find ${chunkdir} -name '" . "chunk-??????.log" . "' | sort | xargs cat > $logfile");
-		#File::Path::Tiny::rm($chunkdir);
+		File::Path::Tiny::rm($chunkdir);
 	} else {
 		#`/usr/bin/gpgdir --no-recurse --no-delete -d ${logdir} 2>&1`;
 		system("/usr/bin/gpgdir --no-recurse --no-delete --skip-test --decrypt ${logdir}");
@@ -384,7 +384,7 @@ while (chomp ($line=<LOG>)) {
 		#if ($lastrsid ne $rsid) {
 		#if ( ($lastrsid ne $rsid) && ($recnum>1) ) {
 		#if ($first_header_found) {
-		if ($recnum>0) {
+		if ($recnum>1) {
 			if ($lastrsid ne $rsid) {
 				print STDERR "ERROR: RSID mismatch: '$rsid' does not match '$lastrsid'\n";
 				$rsid_errors++;
