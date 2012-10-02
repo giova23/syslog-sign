@@ -54,6 +54,17 @@ $secfrac=0;
 # end of config
 
 $CONFIG_FILE = "/etc/syslog-sign.conf";
+if ( open(FILE,"<$CONFIG_FILE") ) {
+      	while(<FILE>) {
+          	chomp;
+                next if /^\s*\#/;
+                next unless /\ /;
+                my ($key, $variable) = split (/\ /, $_, 2);
+                $$key=$variable;
+                # print STDERR "$key $variable\n" if ($debug);
+        }	
+        close(FILE);
+}
 $debug=0;
 $continue=0;
 $init_key=0;
@@ -72,6 +83,17 @@ while ( $#ARGV >= 0 ) {
 		if ( ! -r $CONFIG_FILE ) {
 			print STDERR "Can't read configuration file $CONFIG_FILE. Aborting.\n";
 			exit 1;
+		}
+		if ( open(FILE,"<$CONFIG_FILE") ) {
+        		while(<FILE>) {
+                		chomp;
+                		next if /^\s*\#/;
+                		next unless /\ /;
+                		my ($key, $variable) = split (/\ /, $_, 2);
+                		$$key=$variable;
+                		# print STDERR "$key $variable\n" if ($debug);
+        		}
+        		close(FILE);
 		}
                 shift;
         }
@@ -132,17 +154,6 @@ while ( $#ARGV >= 0 ) {
 }
 
 
-if ( open(FILE,"<$CONFIG_FILE") ) {
-        while(<FILE>) {
-                chomp;
-                next if /^\s*\#/;
-                next unless /\ /;
-                my ($key, $variable) = split (/\ /, $_, 2);
-                $$key=$variable;
-                # print STDERR "$key $variable\n" if ($debug);
-        }
-        close(FILE);
-}
 print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 #$encrypt = $encrypt xor $encrypt_;
 $encrypt = $encrypt_?!$encrypt:$encrypt;
