@@ -44,6 +44,8 @@ $logname="syslog-signed";
 $rsidcounter="/tmp/syslog-sign.rsid";
 $encrypt=0;
 $encrypt_=0;
+$dateformat=0;
+$dateformat_=0;
 $secfrac=0;
 $given_month='????-??';
 #$rsidcounter="/var/run/syslog-sign.rsid";
@@ -153,7 +155,7 @@ while ( $#ARGV >= 0 ) {
                 shift;
         }
         if ( ( $ARGV[0] eq "-df") || ($ARGV[0] eq "--dateformat" ) ) {
-                $multifile=1;
+                $dateformat_=!$dateformat_;
                 shift;
         }
         if ( ( $ARGV[0] eq "-m") || ($ARGV[0] eq "--month" ) ) {
@@ -167,6 +169,7 @@ while ( $#ARGV >= 0 ) {
 print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 #$encrypt = $encrypt xor $encrypt_;
 $encrypt = $encrypt_?!$encrypt:$encrypt;
+$dateformat = $dateformat_?!$dateformat:$dateformat;
 print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 
 #if (!defined($logfile)) {
