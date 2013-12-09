@@ -542,7 +542,7 @@ while ($continue) {
 		if ($encrypt) {
 			#open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logfile}-encrypted-${rsid}-${gbc}.log") 
 			#open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> ${logdir}/${logname}-encrypted-${datetimemark}.log.gpg") 
-			open(LOG, "|/usr/bin/gpg2 -a -e -r 'Chiave per syslog-sign' >> $logfile") 
+			open(LOG, "|/usr/bin/gpg2 --homedir /root/.gnupg -a -e -r 'Chiave per syslog-sign' >> $logfile") 
 			|| die("Error: can't open gpg: $!\n");
 		} else {
 			# FIXME: we open way too many logs.
