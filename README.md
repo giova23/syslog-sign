@@ -39,15 +39,15 @@ The code is under the GPLv2 or, at your option, any later version.
   add
 
 destination d_program_syslog_sign {<br/>
-       &nbsp;&nbsp; program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf" 
-       &nbsp;&nbsp;&nbsp;&nbsp;         flags("syslog-protocol")
+       &nbsp;&nbsp; program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf"<br/>
+       &nbsp;&nbsp;&nbsp;&nbsp;         flags("syslog-protocol")<br/>
        &nbsp;&nbsp; );<br/>
 };<br/>
 
   to your syslog-ng.conf file, and add the d_program_syslog_sign destination to at least one log {} section, for example:
 
 log {
-    &nbsp;&nbsp;    source(local);
-    &nbsp;&nbsp;    filter(f_auth_authpriv);
-    &nbsp;&nbsp;    destination(d_program_syslog_sign);
+    &nbsp;&nbsp;    source(local);<br/>
+    &nbsp;&nbsp;    filter(f_auth_authpriv);<br/>
+    &nbsp;&nbsp;    destination(d_program_syslog_sign);<br/>
 };
