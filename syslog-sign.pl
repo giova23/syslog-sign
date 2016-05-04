@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
 $|=1;
-$rcsid='$Id: syslog-sign.pl,v 0.61 2012/05/20 12:50:49 giova Exp giova $';
+$rcsid='$Id: syslog-sign.pl,v 0.62 2016/05/04 13:47:50 giova Exp giova $';
 
 use POSIX;
 use MIME::Base64;
@@ -44,10 +44,7 @@ $logname="syslog-signed";
 $rsidcounter="/tmp/syslog-sign.rsid";
 $encrypt=0;
 $encrypt_=0;
-$dateformat=0;
-$dateformat_=0;
 $secfrac=0;
-$given_month='????-??';
 #$rsidcounter="/var/run/syslog-sign.rsid";
 # end of config
 
@@ -154,22 +151,12 @@ while ( $#ARGV >= 0 ) {
                 $multifile=1;
                 shift;
         }
-        if ( ( $ARGV[0] eq "-df") || ($ARGV[0] eq "--dateformat" ) ) {
-                $dateformat_=!$dateformat_;
-                shift;
-        }
-        if ( ( $ARGV[0] eq "-m") || ($ARGV[0] eq "--month" ) ) {
-                shift;
-                $given_month=$ARGV[0];
-                shift;
-        }
 }
 
 
 print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 #$encrypt = $encrypt xor $encrypt_;
 $encrypt = $encrypt_?!$encrypt:$encrypt;
-$dateformat = $dateformat_?!$dateformat:$dateformat;
 print STDERR "encrypt: $encrypt, encrypt_: $encrypt_\n" if $debug;
 
 #if (!defined($logfile)) {
@@ -229,7 +216,7 @@ my $dsa_pub  = Crypt::OpenSSL::DSA->read_pub_key( $signpubkeyfile );
 &get_logfile;
 if ($encrypt) {
 	if (!$multifile) {
-		open(SINGLELOG, "cat ${logfile}.gpg|") || die ("Cannot open '${logfile}.gpg': $!");
+		open(SINGLELOG, "<${logfile}.gpg") || die ("Cannot open '${logfile}.gpg': $!");
 		$chunkdir="${logdir}/tmp_multigpg";
 		File::Path::Tiny::mk($chunkdir);
 		$multi_i=0;
@@ -359,17 +346,13 @@ while (chomp ($line=<LOG>)) {
 
         	$valid    = $dsa_pub->verify($sig_hash, $sig);
 		if ($valid != 1) {
-			print STDERR "ERROR: Signatures do not match on line $recnum:\n";
-			print STDERR " $line\n";
+			print STDERR "ERROR: Signatures do not match at line $recnum.\n";
 			exit 1 if (!$continue);
 			$signature_errors++;
 		}
 		print "	OK: Good Signature found.\n\n" if ($debug);
 		# if hash blocks and signature do match, the other parameters are valid too, so we can use them.
-		if (&check_signature_block_parameters( $ver, $rsid, $sg, $spri, $gbc, $fmn, $cnt )) {
-			# An error or a warnign was returned
-			print STDERR " $line\n";
-		}
+		&check_signature_block_parameters( $ver, $rsid, $sg, $spri, $gbc, $fmn, $cnt );
 		
 	} else {
 		print STDERR "HORROR. Internal Error.\n";
@@ -400,9 +383,9 @@ while (chomp ($line=<LOG>)) {
         print "$line\n";
 
 	# FIXME: put an "LAST RSID,GBC" reader here.
-	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.61 2012/05/20 12:50:49 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
+	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.62 2016/05/04 13:47:50 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
 
-	if ($line =~ /.*syslog-sign.pl [0-9]+ - .* Starting '(.*)' LAST RSID=\"([0-9]+)\" GBC=\"([0-9]+)\".*/ ) {
+	if ($line =~ /.*syslog-sign.pl [0-9]+ - - Starting '(.*)' LAST RSID=\"([0-9]+)\" GBC=\"([0-9]+)\".*/ ) {
 		$version="$1";
 		$lastrsid="$2";
 		$lastgbc="$3";
@@ -660,59 +643,49 @@ sub generate_signature_block
 sub check_signature_block_parameters
 {
 	( $ver, $rsid, $sg, $spri, $gbc, $fmn, $cnt ) = @_;
-	$retvar=0;	
+		
 	# the Easy ones first. :)
 	if ($ver ne "0111") {
-		print STDERR "ERROR: Signature Block Version Mismatch. Expecting '0111', Found '$ver' on line:\n";
-		exit 1 if (!$continue);
-		$retvar=1;	
+		print STDERR "ERROR: Signature Block Version Mismatch. Expecting '0111', Found '$ver';\n";
+		exit 1;
 	}
 
 	if ($sg ne "0") {
-		print STDERR "ERROR: Signature Group Mismatch. Expecting '0', Found '$sg' on line:\n";
-		exit 1 if (!$continue);
-		$retvar=2;	
+		print STDERR "ERROR: Signature Group Mismatch. Expecting '0', Found '$sg';\n";
+		exit 1;
 	}
 
 	if ($spri ne "0") {
-		print STDERR "ERROR: Signature Priority Mismatch. Expecting '0', Found '$spri' on line:\n";
-		exit 1 if (!$continue);
-		$retvar=3;	
+		print STDERR "ERROR: Signature Priority Mismatch. Expecting '0', Found '$spri';\n";
+		exit 1;
 	}
 
 	if ( $rsid eq $rsid_old ) {
 		if ($gbc != $gbc_expected) {
-			print STDERR "WARNING: Global Block Count Mismatch: Expecting '$gbc_expected', Found '$gbc' on line:\n";
-			exit 1 if (!$continue);
-			$retvar=4;	
+			print STDERR "ERROR: Global Block Count Mismatch: Expecting '$gbc_expected', Found '$gbc';\n";
+                	exit 1;
 		}
-		#print STDERR "*** IN GBC Checks: gbc_expected increasing from $gbc to " . $gbc+1 . "\n"; 
 		$gbc_expected=$gbc+1;
 	} else {
 		if ($old_rsid > $rsid ) {
-                        print STDERR "ERROR: RSID not Monotonic Increasing: Old is '$old_rsid', new is '$rsid' on line:\n";
-			exit 1 if (!$continue);
-			$retvar=5;	
+                        print STDERR "ERROR: RSID not Monotonic Increasing: Old is '$old_rsid', new is '$rsid';\n";
+                        exit 1;
 
 		}
 		if ($gbc != 0) {
-                        print STDERR "ERROR: Global Block Count Mismatch: Expecting '0', Found '$gbc' on line:\n";
-			exit 1 if (!$continue);
-			$retvar=6;	
+                        print STDERR "ERROR: Global Block Count Mismatch: Expecting '0', Found '$gbc';\n";
+                        exit 1;
                 }
 		
 		$rsid_old = $rsid;
-		#print STDERR "*** IN GBC Checks: gbc_expected increasing from zero to one\n"; 
 		$gbc_expected=0+1;
 		$fmn_old=1;
 	}
 
 	if ($recsig != $cnt) {
-		print STDERR "ERROR: Wrong Number of Lines. Expecting '$cnt', Found '$recsig' on line:\n";
+		print STDERR "ERROR: Wrong Number of Lines. Expecting '$cnt', Found '$recsig';\n";
 		exit 1 if (!$continue);
-		$retvar=7;	
 	}
-	return($retvar);
 	
 }
 
@@ -760,12 +733,6 @@ sub get_logfile
 				$ln_inc++;
 			} until ( ! -f $logfile );
 		}
-	} elsif ($dateformat) {
-		if ($verify) {
-			$logfile = "${logdir}/${logname}-${given_month}-??.log";
-		} else {	
-			$logfile = "${logdir}/${logname}-" . POSIX::strftime("%Y-%m-%d", localtime) . ".log";
-		}
 	} else {
 		$logfile="${logdir}/${logname}.log";
 	}
@@ -789,16 +756,13 @@ sub printhelp
                 print "  -l  | --logfile file      : Log filename  (current setting: $logname)\n";
 		#$logfile_ = $logfile?$logfile:"${logdir}/${logname}";
                 #print "  -lp | --logpath path      : Log path      (current setting: $logfile_)\n";
-		print "  -e  | --encrypt           : Toggle between encripted and non-encrypted output (input in signature verification mode -v).\n";
-		print "  -df | --dateformat        : Add a suffix with the current date to the log filename (in the format -YYYY-MM-DD).\n";
-		print "  -m  | --month YYYY-MM     : If dateformat is set, only process logs of the given month (in signature verification mode -v).\n";
+		print "  -e  | --encrypt           : Toggles between encripted and non-encrypted output (input in signature verification mode -v).\n";
                 print "Other options: \n";
 		print "  -gk | --generate-key           : Generate key at initialization phase. Must be done exactly once before using the system.\n";
 		print "  -ir | --incremental-rsid       : Uses Incremental RSID instead of (less secure) Time-Based RSID.\n";
 		print "  -gr | --generate-rsid          : Initialize Incremental RSID. If Incremental RSID is used, it must be initialized once before using the system,\n";
 		print "                                   so as to prevent cases in which it wouldn't be possible to increment it.\n"; 
 		print "  -i  | --init                   : Generate key and initialize Incremental RSID (equivalent to -gk -gr).\n";
-		print "  -mf | --multifile              : Creates one log file per signature (deprecated).\n";
 		print "Whitout options signs standard input lines in an rfc5828-like mode.\n";
                 print "\n";
                 print "www.nabla2.it\n";
