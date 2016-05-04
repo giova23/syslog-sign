@@ -28,3 +28,26 @@ Giovanni Faglioni &lt; giova at faglioni dot it &gt;
 
 The code is under the GPLv2 or, at your option, any later version.
 
+** INSTALL **
+
+  prerequisites (for ubuntu 14.04 LTS):
+  apt-get install libcrypt-dsa-perl libcrypt-openssl-dsa-perl libtry-tiny-perl libpath-tiny-perl libfile-path-tiny-perl
+
+  copy syslog-sign.pl in /usr/local/sbin/syslog-sign.pl
+  copy syslog-sign.conf in /usr/local/etc/syslog-sign.conf
+  edit syslog-sign.conf to suit your needs. :)
+  add
+
+destination d_program_syslog_sign {<br/>
+       &nbsp;&nbsp; program("/usr/local/sbin/syslog-sign.pl -f /usr/local/etc/syslog-sign.conf" 
+       &nbsp;&nbsp;&nbsp;&nbsp;         flags("syslog-protocol")
+       &nbsp;&nbsp; );<br/>
+};<br/>
+
+  to your syslog-ng.conf file, and add the d_program_syslog_sign destination to at least one log {} section, for example:
+
+log {
+    &nbsp;&nbsp;    source(local);
+    &nbsp;&nbsp;    filter(f_auth_authpriv);
+    &nbsp;&nbsp;    destination(d_program_syslog_sign);
+};
