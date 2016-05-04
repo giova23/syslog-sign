@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
 $|=1;
-$rcsid='$Id: syslog-sign.pl,v 0.64 2016/05/04 14:06:11 giova Exp giova $';
+$rcsid='$Id: syslog-sign.pl,v 0.65 2016/05/04 14:36:28 giova Exp giova $';
 
 use POSIX;
 use MIME::Base64;
@@ -233,7 +233,7 @@ if ($encrypt) {
 		$chunkdir="${logdir}/tmp_multigpg";
 		File::Path::Tiny::mk($chunkdir);
 		$multi_i=0;
-		open(OUTLOG, ">${chunkdir}/chunk_init_error.log");
+		open(OUTLOG, ">${chunkdir}/chunk_init_error.log") || die("non posso aprire $chunkdir");
 		while ($line=<SINGLELOG>) {
 			if ($line eq "-----BEGIN PGP MESSAGE-----\n") {
 				close(OUTLOG);
@@ -400,7 +400,7 @@ while (chomp ($line=<LOG>)) {
         print "$line\n";
 
 	# FIXME: put an "LAST RSID,GBC" reader here.
-	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.64 2016/05/04 14:06:11 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
+	# <38>1 2012-05-06T04:03:37+02:00 ast syslog-sign.pl 28731 - - Starting '$Id: syslog-sign.pl,v 0.65 2016/05/04 14:36:28 giova Exp giova $' LAST RSID="1335979220" GBC="1292" NEW RSID="1336269817" GBC="0" 
 
 	if ($line =~ /.*syslog-sign.pl [0-9]+ - .* Starting '(.*)' LAST RSID=\"([0-9]+)\" GBC=\"([0-9]+)\".*/ ) {
 		$version="$1";
