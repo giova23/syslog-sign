@@ -1,0 +1,118 @@
+From: http://stackoverflow.com/questions/514188/how-would-you-include-the-current-commit-id-in-a-git-projects-files/514668#514668
+
+There are some subtleties to this because of the nature of Git. The way I've
+done this is by copying what the Git developers themselves do. First, you'll
+want to use annotated tags which is probably a good idea anyway. To review,
+you can create a new tag like this:
+
+$ git tag -a -m "Version 0.2" v0.2 HEAD
+
+Then (as suggested in Otto's post) you can use git describe for a useful
+"version" string that will include the number of commits since the tag and
+the leading digits of the sha1 of the the current commit.
+Here's an example from one of my projects:
+
+$ git describe
+v1.0-3-gee47184
+
+That is, this copy is 3 commits ahead of the "v1.0" tag and the commit sha1
+begins with ee47184 (I'm not sure why they include that leading 'g').
+
+The Git developers take it one step further and also include an extra bit
+if the working copy is modified (uncommitted). This requires a few more steps
+so it's all wrapped up in a script they name VERSION-GEN. When run, it prints
+the version string to standard output and also creates a VERSION-FILE file
+(the script is careful to not re-touch that file if the version hasn't changed
+-- so it's build-tool friendly). Then, you can include that VERSION-FILE file
+in your source code, help files, etc.
+
+Using my example VERSION-GEN script (below), my version string for the above
+example is:
+
+$ VERSION-GEN
+version: 1.0-3-gee47
+
+If I modify any of the tracked files it looks like this:
+$ VERSION-GEN
+version: 1.0-3-gee47-mod
+
+Here's my slightly tweaked version of VERSION-GEN. Note that it expects that
+the tags marking versions are of the form v[0-9]* (e.g., v1.0 or v0.2 or
+v12.3.4 or v12.2-4feb2009 etc.)
+
+#!/bin/sh
+
+# Tag revisions like this:
+# $ git tag -a -m "Version 0.2" v0.2 HEAD
+
+VF=VERSION-FILE
+DEFAULT_VERSION=UKNOWN
+
+LF='
+'
+
+# First see if there is a version file (included in release tarballs),
+# then try git-describe, then default.
+if test -d .git -o -f .git &&
+    VN=$(git describe --abbrev=4 HEAD 2>/dev/null) &&
+    case "$VN" in
+    *$LF*) (exit 1) ;;
+    v[0-9]*)
+        git update-index -q --refresh
+        test -z "$(git diff-index --name-only HEAD --)" ||
+        VN="$VN-mod" ;;
+    esac
+then
+        continue
+    #VN=$(echo "$VN" | sed -e 's/-/./g');
+else
+    VN="$DEFAULT_VERSION"
+fi
+
+VN=$(expr "$VN" : v*'\(.*\)')
+
+# Show the version to the user via stderr
+echo >&2 "version: $VN"
+
+# Parse the existing VERSION-FILE 
+if test -r $VF
+then
+    VC=$(sed -e 's/^version: //' <$VF)
+else
+    VC=unset
+fi
+
+# If version has changed, update VERSION-FILE
+test "$VN" = "$VC" || {
+    echo "version: $VN" >$VF
+    echo >&2 "($VF updated)"
+}
+
+
+
+Comments:
+
+There are a couple of typos at the end of the script. Replace the last 3 lines
+with: VC=$(sed -e 's/^version: //' $VF) echo >&2 "($VF updated)" fi Note the
+closing ')' and replacing the last '}' with fi. – Patrick Nov 22 '09 at 22:41
+   	 
+	
+I think the renderer has swallowed several lines of the script. I have
+submitted an edit to indent the code rather than wrapping it in code/pre tags.
+The last few lines should be # Parse the existing VERSION-FILE if test -r $VF
+then ` VC=$(sed -e 's/^version: //' <$VF)` else ` VC=unset` fi # If version
+has changed, update VERSION-FILE test "$VN" = "$VC" || { ` echo "version: $VN"
+>$VF` ` echo >&2 "($VF updated)"` } – seanf Mar 22 '11 at 4:15
+   	 
+	
+Wow, ugly. I've put a copy of the entire script here:
+gist.github.com/880771 – seanf Mar 22 '11 at 4:26
+	
+
+Why not re-touching the version file even if the version has changed?
+Why wouldn't it be build-tool friendly? – clapas Jul 19 '13 at 14:45
+ 	 
+	
+git describe --tags --long --abbrev=7, result example: v2.3.5-151-gf4c1dab
+– Fwolf Mar 12 '15 at 14:09 
+
