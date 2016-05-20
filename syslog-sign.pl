@@ -684,7 +684,7 @@ else
                 # nel syslog-ng.conf.
                 print LOG "$line\n";
             }
-            print STDERR "$recsig Lines read out of $N\n";
+            # print STDERR "$recsig Lines read out of $N\n";
             alarm(0) if ($T > 0);
 
             # discriminate between end of file and max number of lines read.
@@ -739,8 +739,10 @@ sub generate_signature_block
 
     # Compute the line for the signature
     # Note: 110 = audit.info: int(110/8)=13 = audit, 110-(8*13)=6 = info;
+    $newcnt = ( length($hash_block) +1 ) / 29;
+    $sig_start = "<110>1 $timestamp $hostname syslogd $pid - - [ssign VER=\"0111\" RSID=\"$rsid\" SG=\"0\" SPRI=\"0\" GBC=\"$gbc\" FMN=\"$fmn\" CNT=\"$newcnt\" HB=\"$hash_block\"";
 
-    $sig_start = "<110>1 $timestamp $hostname syslogd $pid - - [ssign VER=\"0111\" RSID=\"$rsid\" SG=\"0\" SPRI=\"0\" GBC=\"$gbc\" FMN=\"$fmn\" CNT=\"$recsig\" HB=\"$hash_block\"";
+    print STDERR "ERROR: recsig='$recsig', newcnt='$newcnt'\n" if ($recsig != $newcnt );
 
     # Compute the signature on that line
     $sig_hash = sha1($sig_start);
@@ -874,6 +876,8 @@ sub rsid_incr
 
 sub signal_trap
 {
+    # don't call us more than once.
+    alarm(0);
     # print "Signal Caught. I should sign the last $recsig Lines.\n";
     if ($recsig > 0)
     {
