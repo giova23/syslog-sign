@@ -20,6 +20,8 @@
 #
 $|     = 1;
 $gitid = '$Id$';
+$signid = `/bin/cat VERSION-FILE`;
+chomp $signid;
 
 use POSIX;
 use MIME::Base64;
@@ -627,7 +629,7 @@ else
     # (or if it's configured NOT to send auth messages to us)
     # should output a text line to the log directly, just after the open()
     openlog("syslog-sign.pl", "ndelay,pid", "auth");
-    syslog(LOG_INFO, "Starting '$gitid' LAST $last_rsid_gbc NEW RSID=\"$rsid\" GBC=\"$gbc\"");
+    syslog(LOG_INFO, "Starting '$gitid $signid' LAST $last_rsid_gbc NEW RSID=\"$rsid\" GBC=\"$gbc\"");
     closelog;
 
     $continue = 1;
