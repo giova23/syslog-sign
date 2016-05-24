@@ -87,6 +87,7 @@ $init_key  = 0;
 $init_rsid = 0;
 $inc_rsid  = 0;
 $multifile = 0;
+$control_C = 0; # flag. If true -> a ^C (SIGINT) or SIGTERM occourred.
 
 #$arg_logfile="";
 while ($#ARGV >= 0)
@@ -648,7 +649,7 @@ else
 
             # Timeout Handler
             $SIG{ALRM} = sub { print STDERR "ALARM"; die "timeout\n" };
-            while ( $recsig < $N && chop($line = <>) )
+            while ( $control_C == 0 && $recsig < $N && chop($line = <>) )
             {
 		$old_timer = alarm(0);
 		print STDERR "old_timer='$old_timer'\n";
@@ -795,6 +796,11 @@ sub generate_signature_block
 
     #	# close and reopen the logfile
     close(LOG);
+    if ( $control_C > 0 ) 
+    {
+	print STDERR "Exiting on SIGTERM or SIGINT\n";
+	exit 0;
+    }
 }
 
 sub check_signature_block_parameters
@@ -885,18 +891,29 @@ sub rsid_incr
 
 sub signal_trap
 {
-    # don't call us more than once.
-    alarm(0);
-    # print "Signal Caught. I should sign the last $recsig Lines.\n";
-    if ($recsig > 0)
-    {
-        &generate_signature_block;
+    # signal that a ^C occurred 
+    $control_C++;
+    if ($line eq "") {
+	alarm(0);
+	# $SIG{"INT"} = "IGNORE";
+	if ( $recsig > 0 ) {
+	     &generate_signature_block();
+	}
+	exit 0;
     }
-
-    # correctly closes gpg
-    close(LOG);
-    exit 0;
 }
+## don't call us more than once.
+#alarm(0);
+#$SIG{INT}='IGNORE';
+## print "Signal Caught. I should sign the last $recsig Lines.\n";
+#if ($recsig > 0)
+#{
+#    &generate_signature_block;
+#}
+#
+#    # correctly closes gpg
+#    close(LOG);
+#    exit 0;
 
 sub get_logfile
 {
