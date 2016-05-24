@@ -20,7 +20,7 @@
 #
 $|     = 1;
 $gitid = '$Id$';
-$signid = "v0.69.0";
+$signid = "v0.70.0";
 
 use POSIX;
 use MIME::Base64;
@@ -648,11 +648,11 @@ else
             $SIG{TERM} = \&signal_trap;
 
             # Timeout Handler
-            $SIG{ALRM} = sub { print STDERR "ALARM"; die "timeout\n" };
+            $SIG{ALRM} = sub { die "timeout\n" };
             while ( $control_C == 0 && $recsig < $N && chop($line = <>) )
             {
 		$old_timer = alarm(0);
-		print STDERR "old_timer='$old_timer'\n";
+		# print STDERR "old_timer='$old_timer'\n";
 
                 if ($recsig == 0)
                 {
@@ -695,7 +695,7 @@ else
  		}
             }
             alarm(0) if ($T > 0);
-            print STDERR "$recsig Lines read out of $N\n";
+            # print STDERR "$recsig Lines read out of $N\n";
 
             # discriminate between end of file and max number of lines read.
             # it's not an alarm (the catch cathches that)
@@ -798,7 +798,7 @@ sub generate_signature_block
     close(LOG);
     if ( $control_C > 0 ) 
     {
-	print STDERR "Exiting on SIGTERM or SIGINT\n";
+	# print STDERR "Exiting on SIGTERM or SIGINT\n";
 	exit 0;
     }
 }
@@ -959,11 +959,10 @@ sub get_logfile
         {
 		
             $logfile = "${logdir}/${logname}-" . POSIX::strftime("%Y-%m-%d", localtime) . ".log";
-            $logfile = "${logdir}/${logname}-" . POSIX::strftime("%Y-%m-%d_%H%M%S", localtime) . ".log";
 	    if ($old_logfile != $logfile ) {
 		$old_logfile = $logfile;	
 		if ($old_logfile != "") {
-		    print STDERR "GIOVA: nome file cambiato: old='$old_logfile', new='$logfile';\n";
+		    # print STDERR "filename changed: old='$old_logfile', new='$logfile';\n";
 		    $rsid=time();
 		    $gbc=0;
 		    # FIXME: works for time()based rsids only
