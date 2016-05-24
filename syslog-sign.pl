@@ -895,7 +895,7 @@ sub signal_trap
     $control_C++;
     if ($line eq "") {
 	alarm(0);
-	# $SIG{"INT"} = "IGNORE";
+	$SIG{"INT"} = "IGNORE";
 	if ( $recsig > 0 ) {
 	     &generate_signature_block();
 	}
