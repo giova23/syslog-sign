@@ -20,7 +20,7 @@
 #
 $|     = 1;
 $gitid = '$Id$';
-$signid = "v0.68.0";
+$signid = "v0.69.0";
 
 use POSIX;
 use MIME::Base64;
@@ -963,15 +963,10 @@ sub get_logfile
 	    if ($old_logfile != $logfile ) {
 		$old_logfile = $logfile;	
 		if ($old_logfile != "") {
-			print STDERR "GIOVA: nome file cambiato: old='$old_logfile', new='$logfile';\n";
-			    $rsid=time();
-			    $gbc=0;
-			    if (open(RSID, "<${logdir}/rsid-gbc.db"))
-    			    {
-        			$last_rsid_gbc = <RSID>;
-        			chop $last_rsid_gbc;
-        			close(RSID);
-    			    }
+		    print STDERR "GIOVA: nome file cambiato: old='$old_logfile', new='$logfile';\n";
+		    $rsid=time();
+		    $gbc=0;
+		    # FIXME: works for time()based rsids only
 		} 
 	    }
         }
