@@ -51,6 +51,9 @@ $dateformat_ = 0;
 $secfrac     = 0;
 $given_month = '????-??';
 
+# reinit log at logfile name change
+$old_logfile="";
+
 #$rsidcounter="/var/run/syslog-sign.rsid";
 # end of config
 
@@ -523,7 +526,7 @@ if ($verify)
                 }
 
                 #$first_header_found=1;
-                print STDERR "First header found\n";
+                # print STDERR "First header found\n";
 
             }
         }
@@ -644,14 +647,12 @@ else
             $SIG{TERM} = \&signal_trap;
 
             # Timeout Handler
-            $SIG{ALRM} = sub { die "timeout\n" };
-            while (chop($line = <>) && $recsig < $N)
+            $SIG{ALRM} = sub { print STDERR "ALARM"; die "timeout\n" };
+            while ( $recsig < $N && chop($line = <>) )
             {
-                # if we read the FIRST line, then start the timeout
-                if ($recsig == 0 && $T > 0)
-                {
-                    alarm($T);
-                }
+		$old_timer = alarm(0);
+		print STDERR "old_timer='$old_timer'\n";
+
                 if ($recsig == 0)
                 {
                     close(LOG);
@@ -682,9 +683,18 @@ else
                 # Per funzionare, occorre aggiungere flags("syslog-protocol") al program("")
                 # nel syslog-ng.conf.
                 print LOG "$line\n";
+		$line="";
+
+                # if we read the FIRST line, then start the timeout
+		if ( $T > 0 ) {
+		    # we have timeouts.
+                    $old_timer = $T if ($recsig == 1 ); # first line, full timeout.
+		    break if ( $old_timer <= 0 );      # old_timer is near 0 -> we must sign anyway so we exit the main loop
+		    alarm($old_timer);
+ 		}
             }
-            # print STDERR "$recsig Lines read out of $N\n";
             alarm(0) if ($T > 0);
+            print STDERR "$recsig Lines read out of $N\n";
 
             # discriminate between end of file and max number of lines read.
             # it's not an alarm (the catch cathches that)
@@ -930,7 +940,23 @@ sub get_logfile
         }
         else
         {
+		
             $logfile = "${logdir}/${logname}-" . POSIX::strftime("%Y-%m-%d", localtime) . ".log";
+            $logfile = "${logdir}/${logname}-" . POSIX::strftime("%Y-%m-%d_%H%M%S", localtime) . ".log";
+	    if ($old_logfile != $logfile ) {
+		$old_logfile = $logfile;	
+		if ($old_logfile != "") {
+			print STDERR "GIOVA: nome file cambiato: old='$old_logfile', new='$logfile';\n";
+			    $rsid=time();
+			    $gbc=0;
+			    if (open(RSID, "<${logdir}/rsid-gbc.db"))
+    			    {
+        			$last_rsid_gbc = <RSID>;
+        			chop $last_rsid_gbc;
+        			close(RSID);
+    			    }
+		} 
+	    }
         }
     }
     else
