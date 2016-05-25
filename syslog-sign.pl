@@ -20,7 +20,7 @@
 #
 $|     = 1;
 $gitid = '$Id$';
-$signid = "v0.70.0";
+$signid = "v0.71.0";
 
 use POSIX;
 use MIME::Base64;
@@ -690,7 +690,7 @@ else
 		if ( $T > 0 ) {
 		    # we have timeouts.
                     $old_timer = $T if ($recsig == 1 ); # first line, full timeout.
-		    break if ( $old_timer <= 0 );      # old_timer is near 0 -> we must sign anyway so we exit the main loop
+		    last if ( $old_timer <= 0 );      # old_timer is near 0 -> we must sign anyway so we exit the main loop
 		    alarm($old_timer);
  		}
             }
