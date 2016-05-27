@@ -20,7 +20,7 @@
 #
 $|     = 1;
 $gitid = '$Id$';
-$signid = "v0.71.0";
+$signid = "v0.72.0";
 
 use POSIX;
 use MIME::Base64;
@@ -595,6 +595,8 @@ else
     # using keys from PEM files
     $dsa_priv = Crypt::OpenSSL::DSA->read_priv_key($signseckeyfile);
 
+    my $time_first = time();	# initialization is not really necessary
+
     $rsid = time();
     if ($inc_rsid)
     {
@@ -648,11 +650,14 @@ else
             $SIG{TERM} = \&signal_trap;
 
             # Timeout Handler
+            # $SIG{ALRM} = sub { my $ut = time(); print STDERR "Alarm time elapsed at Unix Epoch: $ut\n"; die "timeout\n" };
             $SIG{ALRM} = sub { die "timeout\n" };
+
+            my $timeover = 0;  # declares and resets "soft" timeout flag
+
             while ( $control_C == 0 && $recsig < $N && chop($line = <>) )
             {
-		$old_timer = alarm(0);
-		# print STDERR "old_timer='$old_timer'\n";
+		alarm(0);
 
                 if ($recsig == 0)
                 {
@@ -686,22 +691,30 @@ else
                 print LOG "$line\n";
 		$line="";
 
-                # if we read the FIRST line, then start the timeout
-		if ( $T > 0 ) {
-		    # we have timeouts.
-                    $old_timer = $T if ($recsig == 1 ); # first line, full timeout.
-		    last if ( $old_timer <= 0 );      # old_timer is near 0 -> we must sign anyway so we exit the main loop
-		    alarm($old_timer);
+		# if we have timeouts.
+		if ( $T > 0 )
+		{
+		    $now = time();
+                    $time_first = $now if ($recsig == 1 ); # if we read the FIRST line, then save its time
+		    $alarm_time = $time_first + $T - $now; 
+                    if ($alarm_time <= 0)  # alarm_time is near 0 -> we must sign anyway
+                    {
+                        $timeover = 1;  # flags the (almost) elapsed "soft" timeout
+                        last;           # and exits the inner loop
+                    }
+		    alarm($alarm_time);
  		}
             }
+
             alarm(0) if ($T > 0);
             # print STDERR "$recsig Lines read out of $N\n";
 
             # discriminate between end of file and max number of lines read.
             # it's not an alarm (the catch cathches that)
-            # if we read the max number of lines, than it's NOT EOF.
+            # if we read the max number of lines, or it's a "soft" timeout, than it's NOT EOF.
             # so if we don't, IT'S EOF.
-            if ($recsig != $N)
+            # if (!($recsig == $N || $timeover != 0))  #  --> DeMorgan -->
+            if ($recsig != $N && $timeover == 0)
             {
                 $continue = 0;
             }
