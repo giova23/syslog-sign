@@ -20,7 +20,7 @@
 #
 $|     = 1;
 $gitid = '$Id$';
-$signid = "v0.72.0";
+$signid = "v0.73.0";
 
 use POSIX;
 use MIME::Base64;
@@ -789,9 +789,7 @@ sub generate_signature_block
     # output the signature line
     print LOG "$sig_start" . "$signature" . "$sig_end";
 
-    open(OUT, ">${logdir}/rsid-gbc.db") || die("Cannot write on '${logdir}/rsid-gbc.db: $!");
-    print OUT "RSID=\"$rsid\" GBC=\"$gbc\"\n";
-    close(OUT);
+    update_rsid_gbc_file();
 
     $gbc++;
 
@@ -976,8 +974,9 @@ sub get_logfile
 		$old_logfile = $logfile;	
 		if ($old_logfile != "") {
 		    # print STDERR "filename changed: old='$old_logfile', new='$logfile';\n";
-		    $rsid=time();
-		    $gbc=0;
+		    $rsid = time();
+		    $gbc = 0;
+                    update_rsid_gbc_file();
 		    # FIXME: works for time()based rsids only
 		} 
 	    }
@@ -1022,5 +1021,12 @@ sub printhelp
     print "Whitout options signs standard input lines in an rfc5828-like mode.\n";
     print "\n";
     print "www.nabla2.it\n";
+}
+
+sub update_rsid_gbc_file
+{
+    open(OUT, ">${logdir}/rsid-gbc.db") || die("Cannot write on '${logdir}/rsid-gbc.db: $!");
+    print OUT "RSID=\"$rsid\" GBC=\"$gbc\"\n";
+    close(OUT);
 }
 
