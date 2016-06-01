@@ -20,7 +20,7 @@
 #
 $|     = 1;
 $gitid = '$Id$';
-$signid = "v0.73.0";
+$signid = "v0.74.0";
 
 use POSIX;
 use MIME::Base64;
@@ -968,17 +968,18 @@ sub get_logfile
         }
         else
         {
-		
             $logfile = "${logdir}/${logname}-" . POSIX::strftime("%Y-%m-%d", localtime) . ".log";
-	    if ($old_logfile != $logfile ) {
-		$old_logfile = $logfile;	
-		if ($old_logfile != "") {
+	    if ($old_logfile ne $logfile)
+            {
+		if ($old_logfile ne "")
+                {
 		    # print STDERR "filename changed: old='$old_logfile', new='$logfile';\n";
 		    $rsid = time();
 		    $gbc = 0;
                     update_rsid_gbc_file();
 		    # FIXME: works for time()based rsids only
 		} 
+		$old_logfile = $logfile;
 	    }
         }
     }
